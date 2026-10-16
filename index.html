@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Flextid</title>
+<meta name="theme-color" content="#17181B">
+<meta name="description" content="Flex time calculator">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-192.png" type="image/png">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap">
+<style>
+/* Layout: one narrow column, a single dark tool card; settings and log fold out below. Deliberately dark-only. */
+:root {
+  --bg: #17181B; --card: #23262B; --line: #33373E; --field: #1C1E22; --field-line: #3F434B;
+  --fg: #E7E8EA; --strong: #F2F3F5; --label: #C9CCD1; --muted: #A3A7AE;
+  --accent: #93A9FA; --pos: #7FD8A4; --neg: #F28B82; --warn: #F0C36A;
+  --track: #2F3238; --fill: #3D4A7E; --zero: #E0574C; --now: #FFFFFF;
+  --btn: #ECEDEF; --btn-fg: #17181B;
+  --sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+  color-scheme: dark;
+}
+html, body { background: var(--bg); color: var(--fg); }
+:root { padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
+[hidden] { display: none !important; }
+body { margin: 0; font-family: var(--sans); font-size: 15px; line-height: 1.4; -webkit-tap-highlight-color: transparent; }
+.app {
+  max-width: 560px; margin: 0 auto; box-sizing: border-box;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 18px 40px;
+  display: flex; flex-direction: column; gap: 12px;
+}
+header { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 0 4px; }
+h1 { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.01em; }
+.date { font-size: 13px; color: var(--muted); }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.grid2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.grid3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.grid4 { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+label { font-size: 13px; color: var(--label); }
+input[type=time], input[type=text], input[type=number] {
+  height: 44px; width: 100%; box-sizing: border-box; padding: 0 12px; min-width: 0;
+  border: 1px solid var(--field-line); border-radius: 8px; background: var(--field);
+  font: 500 16px var(--mono); color: var(--fg); font-variant-numeric: tabular-nums;
+  -webkit-appearance: none; appearance: none;
+}
+input[type=time]::-webkit-calendar-picker-indicator { display: none; }
+input:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button { cursor: pointer; font-family: var(--sans); }
+.btn-outline {
+  height: 44px; border-radius: 8px; border: 1px solid #4A4F58; background: transparent; color: var(--fg);
+  font-size: 15px; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.btn-outline:active { background: var(--field); }
+input[type=range] { width: 100%; margin: 2px 0; height: 32px; accent-color: var(--accent); }
+.result { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 8px; row-gap: 2px; font-size: 19px; color: var(--muted); }
+.result b { font: 700 23px var(--mono); color: var(--strong); font-variant-numeric: tabular-nums; }
+.sub { font-size: 13px; color: var(--muted); }
+.prompt { font-size: 15px; color: var(--label); }
+.bar { position: relative; height: 10px; border-radius: 5px; background: var(--track); }
+.bar-fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 5px; background: var(--fill); width: 0; }
+.mark { position: absolute; top: -4px; width: 3px; height: 18px; border-radius: 2px; margin-left: -1px; }
+.mark.zero { background: var(--zero); } .mark.now { background: var(--now); }
+.ticks { position: relative; height: 16px; font: 400 11px var(--mono); color: var(--muted); }
+.ticks span { position: absolute; transform: translateX(-50%); }
+.legend { display: flex; gap: 14px; font-size: 12px; color: var(--muted); }
+.legend span { display: flex; align-items: center; gap: 6px; }
+.sw { width: 3px; height: 12px; border-radius: 2px; }
+.chips { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.chip {
+  min-height: 40px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--field-line);
+  background: var(--field); color: var(--fg); font-size: 14px; font-weight: 500;
+}
+.chip b { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.chip:disabled { opacity: .5; cursor: default; }
+.warn { font-size: 13px; color: var(--warn); }
+.save-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 12px; }
+.save-row .field { width: 180px; }
+.btn-solid { height: 44px; padding: 0 14px; border-radius: 8px; border: none; background: var(--btn); color: var(--btn-fg); font-size: 14px; font-weight: 600; }
+.btn-solid:disabled { opacity: .5; cursor: default; }
+.btn-link { height: 44px; padding: 0 4px; border: none; background: transparent; color: var(--accent); font-size: 14px; font-weight: 500; }
+.more { border-top: 1px solid var(--line); padding-top: 16px; display: flex; flex-direction: column; gap: 14px; }
+.eyebrow { font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); padding-top: 4px; }
+.pills { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+.pill { height: 40px; border-radius: 8px; border: 1px solid var(--field-line); background: var(--field); color: var(--fg); font: 500 14px var(--mono); }
+.pill[aria-pressed="true"] { background: var(--btn); color: var(--btn-fg); border-color: var(--btn); }
+.log { display: flex; flex-direction: column; }
+.log-row { display: flex; align-items: center; gap: 10px; min-height: 52px; border-bottom: 1px solid #2E3137; }
+.log-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.log-date { font-size: 14px; }
+.log-span { font: 400 12px var(--mono); color: var(--muted); }
+.log-flex { font: 700 15px var(--mono); font-variant-numeric: tabular-nums; }
+.log-del { min-width: 40px; height: 40px; border: none; background: transparent; color: var(--muted); display: flex; align-items: center; justify-content: center; border-radius: 8px; font-size: 13px; font-weight: 600; }
+.log-del.confirm { color: var(--neg); border: 1px solid var(--neg); padding: 0 10px; }
+.log-total { display: flex; justify-content: space-between; align-items: baseline; padding-top: 10px; font-size: 14px; color: var(--label); }
+.log-total b { font: 700 16px var(--mono); }
+.status { font-size: 12px; color: var(--muted); text-align: center; padding-top: 2px; }
+.pos { color: var(--pos) !important; } .neg { color: var(--neg) !important; } .even { color: var(--strong) !important; }
+@media (max-width: 360px) { .grid4 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1>Flextid</h1>
+    <div class="date" id="todayLabel"></div>
+  </header>
+
+  <section class="card" aria-label="Today">
+    <div class="grid2">
+      <div class="field">
+        <label for="cameIn">Came in</label>
+        <input id="cameIn" type="time">
+      </div>
+      <div class="field">
+        <label for="leaveAt">Leave at</label>
+        <input id="leaveAt" type="time">
+      </div>
+      <div class="field">
+        <label for="lunch">Lunch (min)</label>
+        <input id="lunch" type="number" inputmode="numeric" min="0" max="600">
+      </div>
+      <div class="field">
+        <label for="breaks">Other breaks (min)</label>
+        <input id="breaks" type="number" inputmode="numeric" min="0" max="600">
+      </div>
+    </div>
+
+    <button type="button" class="btn-outline" id="cameInNow">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v5l3 2"></path></svg>
+      Came in now
+    </button>
+
+    <input id="slider" type="range" aria-label="Leave time" min="300" max="1260" step="1">
+
+    <div id="resultBlock" style="display: flex; flex-direction: column; gap: 4px">
+      <div class="result">
+        <span>Leave <b id="rLeave">--:--</b></span>
+        <span>→ today <b id="rToday">±0:00</b></span>
+        <span>· balance <b id="rBalance">±0:00</b></span>
+      </div>
+      <div class="sub" id="rExact" hidden></div>
+    </div>
+    <div class="prompt" id="promptBlock" hidden>Enter when you came in, or tap <b>Came in now</b>.</div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px">
+      <div class="bar" id="bar" role="img" aria-label="Day bar">
+        <div class="bar-fill" id="barFill"></div>
+        <div class="mark zero" id="markZero"></div>
+        <div class="mark now" id="markNow"></div>
+      </div>
+      <div class="ticks" aria-hidden="true">
+        <span style="left: 12.5%">07</span><span style="left: 31.25%">10</span><span style="left: 50%">13</span><span style="left: 68.75%">16</span><span style="left: 87.5%">19</span>
+      </div>
+      <div class="legend" aria-hidden="true">
+        <span><span class="sw" style="background: var(--zero)"></span>±0</span>
+        <span><span class="sw" style="background: var(--now)"></span>Now</span>
+        <span><span class="sw" style="width: 12px; height: 6px; border-radius: 3px; background: var(--fill)"></span>Leave</span>
+      </div>
+    </div>
+
+    <div class="chips">
+      <button type="button" class="chip" id="zeroChip">±0 at <b id="zeroTime">--:--</b></button>
+      <button type="button" class="chip" id="nowChip">Leave now (<span id="nowTime">--:--</span>): <b id="nowFlex">±0:00</b></button>
+      <span class="sub" id="normalNote"></span>
+    </div>
+
+    <div class="warn" id="warnLate" hidden></div>
+    <div class="warn" id="warnEarly" hidden></div>
+
+    <div class="save-row">
+      <div class="field">
+        <label for="before">Flex balance before today</label>
+        <input id="before" type="text" autocomplete="off" spellcheck="false">
+      </div>
+      <button type="button" class="btn-solid" id="saveToday">Save today</button>
+      <button type="button" class="btn-link" id="toggleMore" aria-expanded="false" aria-controls="more">Normal hours &amp; log</button>
+    </div>
+
+    <div class="more" id="more" hidden>
+      <div class="eyebrow">Normal working time (without breaks)</div>
+      <div class="grid4" id="weekGrid"></div>
+
+      <div class="grid3">
+        <div class="field">
+          <label for="defLunch">Default lunch</label>
+          <input id="defLunch" type="number" inputmode="numeric" min="0" max="600">
+        </div>
+        <div class="field">
+          <label for="coreFrom">Core from</label>
+          <input id="coreFrom" type="time">
+        </div>
+        <div class="field">
+          <label for="coreTo">Core to</label>
+          <input id="coreTo" type="time">
+        </div>
+      </div>
+
+      <div class="eyebrow">Flex interval (min)</div>
+      <div class="pills" role="group" aria-label="Flex interval in minutes" id="pills"></div>
+      <div class="sub" id="ivExample"></div>
+
+      <div class="eyebrow">Saved days</div>
+      <div class="log" id="log"></div>
+
+      <div class="eyebrow">Backup</div>
+      <div class="sub">Your data is stored only on this phone. Export a backup now and then, or to move to a new phone.</div>
+      <div class="chips">
+        <button type="button" class="chip" id="exportBtn">Export backup</button>
+        <label class="chip" for="importFile" style="display: inline-flex; align-items: center; cursor: pointer; font-size: 14px; color: var(--fg)">Import backup</label>
+        <input type="file" id="importFile" accept="application/json,.json" style="position: absolute; width: 1px; height: 1px; opacity: 0">
+      </div>
+      <div id="importConfirm" class="chips" hidden>
+        <span class="warn" id="importMsg"></span>
+        <button type="button" class="btn-solid" id="importYes">Replace my data</button>
+        <button type="button" class="btn-link" id="importNo">Cancel</button>
+      </div>
+    </div>
+  </section>
+
+  <div class="status" id="status">Saved on this phone</div>
+</div>
+
+<script>
+(function () {
+  var DAYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+  var ORDER = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+  var LABEL = { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' };
+  var INTERVALS = [1, 5, 10, 15, 30, 60];
+  var LS_KEY = 'flextid.v1';
+  var BAR_MIN = 300, BAR_MAX = 1260;
+
+  function $(id) { return document.getElementById(id); }
+  function pad(n) { return String(n).padStart(2, '0'); }
+  function dateKey(d) { d = d || new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function nowMin() { var d = new Date(); return d.getHours() * 60 + d.getMinutes(); }
+  function toMin(t) {
+    if (!t || String(t).indexOf(':') < 0) return null;
+    var p = String(t).split(':'), h = parseInt(p[0], 10), m = parseInt(p[1], 10);
+    return (isNaN(h) || isNaN(m)) ? null : h * 60 + m;
+  }
+  function clock(m) { m = ((Math.round(m) % 1440) + 1440) % 1440; return pad(Math.floor(m / 60)) + ':' + pad(m % 60); }
+  function hm(m) { var a = Math.abs(Math.round(m)); return Math.floor(a / 60) + ':' + pad(a % 60); }
+  function signed(m) { return m > 0 ? '+' + hm(m) : (m < 0 ? '−' + hm(m) : '±0:00'); }
+  function tone(m) { return m > 0 ? 'pos' : (m < 0 ? 'neg' : 'even'); }
+  function num(v) { var n = parseInt(v, 10); return isNaN(n) || n < 0 ? 0 : n; }
+  function parseDur(t) {
+    var s = String(t || '').trim().replace(',', '.');
+    if (!s) return null;
+    if (s.indexOf(':') >= 0) return toMin(s);
+    var f = parseFloat(s); return isNaN(f) ? null : Math.round(f * 60);
+  }
+  function parseSigned(t) {
+    var s = String(t || '').trim();
+    if (!s) return 0;
+    var neg = /^[-−]/.test(s);
+    s = s.replace(/^[-−+±]\s*/, '');
+    var v = parseDur(s);
+    return v == null ? null : (neg ? -v : v);
+  }
+  function setTone(el, m) { el.classList.remove('pos', 'neg', 'even'); el.classList.add(tone(m)); }
+
+  function defaults() {
+    return {
+      v: 1,
+      settings: { week: { mon: 480, tue: 480, wed: 480, thu: 480, fri: 480, sat: 0, sun: 0 }, defaultLunch: 45, coreFrom: '08:30', coreTo: '14:45', interval: 1, startBalance: 0 },
+      today: { date: dateKey(), cameIn: '', leaveAt: '', lunch: 45, breaks: 0 },
+      saved: [],
+      updatedAt: 0
+    };
+  }
+  function normalize(raw) {
+    var d = defaults(), s = raw && typeof raw === 'object' ? raw : {};
+    var st = Object.assign({}, d.settings, s.settings || {});
+    st.week = Object.assign({}, d.settings.week, (s.settings && s.settings.week) || {});
+    var today = Object.assign({}, d.today, s.today || {});
+    if (today.date !== dateKey()) today = { date: dateKey(), cameIn: '', leaveAt: '', lunch: st.defaultLunch, breaks: 0 };
+    return { v: 1, settings: st, today: today, saved: Array.isArray(s.saved) ? s.saved.slice() : [], updatedAt: s.updatedAt || 0 };
+  }
+
+  var state = defaults();
+  try { var cached = localStorage.getItem(LS_KEY); if (cached) state = normalize(JSON.parse(cached)); } catch (e) {}
+  state = normalize(state);
+
+  var storageOk = true, confirmDel = null, pendingImport = null;
+
+  function persist() {
+    state.updatedAt = Date.now();
+    try { localStorage.setItem(LS_KEY, JSON.stringify(state)); storageOk = true; } catch (e) { storageOk = false; }
+    renderStatus();
+  }
+
+  function renderStatus() {
+    $('status').textContent = storageOk
+      ? 'Saved on this phone'
+      : 'This browser is blocking storage, so changes are lost when you close the app. Turn off private mode or allow site data.';
+  }
+  try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
+
+  function calc() {
+    var t = state.today, s = state.settings, n = nowMin();
+    var normal = s.week[DAYS[new Date().getDay()]] || 0;
+    var lunch = num(t.lunch), other = num(t.breaks), brk = lunch + other;
+    var inMin = toMin(t.cameIn), iv = s.interval || 1;
+    var others = state.saved.reduce(function (a, e) { return e.date === t.date ? a : a + (e.flex || 0); }, 0);
+    var before = (s.startBalance || 0) + others;
+    var r = { n: n, normal: normal, brk: brk, iv: iv, before: before, hasIn: inMin != null };
+    if (inMin == null) return r;
+    r.zero = inMin + normal + brk;
+    r.leave = toMin(t.leaveAt); if (r.leave == null) r.leave = r.zero;
+    r.raw = r.leave - inMin - brk - normal;
+    r.counted = Math.floor(r.raw / iv) * iv;
+    r.nowCounted = Math.floor((n - inMin - brk - normal) / iv) * iv;
+    r.balance = before + r.counted;
+    r.inMin = inMin;
+    return r;
+  }
+
+  function pct(m) { return Math.max(0, Math.min(100, (m - BAR_MIN) / (BAR_MAX - BAR_MIN) * 100)); }
+  function setVal(el, v) { if (document.activeElement !== el && el.value !== String(v)) el.value = v; }
+
+  function render() {
+    var s = state.settings, t = state.today, r = calc();
+    $('todayLabel').textContent = new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+    setVal($('cameIn'), t.cameIn);
+    setVal($('leaveAt'), t.leaveAt || (r.hasIn ? clock(r.zero) : ''));
+    setVal($('lunch'), t.lunch);
+    setVal($('breaks'), t.breaks);
+    setVal($('before'), signed(r.before));
+
+    $('resultBlock').hidden = !r.hasIn;
+    $('promptBlock').hidden = r.hasIn;
+    $('zeroChip').disabled = !r.hasIn;
+    $('nowChip').disabled = !r.hasIn;
+    $('saveToday').disabled = !r.hasIn;
+    $('slider').disabled = !r.hasIn;
+    $('nowTime').textContent = clock(r.n);
+    $('normalNote').textContent = 'Normal day ' + hm(r.normal) + ' + breaks ' + r.brk + ' min';
+    $('markNow').style.left = pct(r.n) + '%';
+
+    if (r.hasIn) {
+      $('slider').value = Math.max(BAR_MIN, Math.min(BAR_MAX, r.leave));
+      $('rLeave').textContent = clock(r.leave);
+      $('rToday').textContent = signed(r.counted); setTone($('rToday'), r.counted);
+      $('rBalance').textContent = signed(r.balance); setTone($('rBalance'), r.balance);
+      var showExact = r.iv > 1 && r.raw !== r.counted;
+      $('rExact').hidden = !showExact;
+      if (showExact) $('rExact').textContent = 'Exact ' + signed(r.raw) + ' · counted in ' + r.iv + '-min steps';
+      $('zeroTime').textContent = clock(r.zero);
+      $('nowFlex').textContent = signed(r.nowCounted); setTone($('nowFlex'), r.nowCounted);
+      $('barFill').style.width = pct(r.leave) + '%';
+      $('markZero').hidden = false;
+      $('markZero').style.left = pct(r.zero) + '%';
+      $('bar').setAttribute('aria-label', 'Leave ' + clock(r.leave) + ', zero flex at ' + clock(r.zero) + ', now ' + clock(r.n));
+      var saved = state.saved.some(function (e) { return e.date === t.date; });
+      $('saveToday').textContent = (saved ? 'Update today' : 'Save today') + ' (' + signed(r.counted) + ')';
+    } else {
+      $('zeroTime').textContent = '--:--';
+      $('nowFlex').textContent = '--';
+      $('nowFlex').classList.remove('pos', 'neg', 'even');
+      $('barFill').style.width = '0';
+      $('markZero').hidden = true;
+      $('bar').setAttribute('aria-label', 'Now ' + clock(r.n));
+      $('saveToday').textContent = 'Save today';
+    }
+
+    var coreFrom = toMin(s.coreFrom), coreTo = toMin(s.coreTo);
+    var late = r.hasIn && coreFrom != null && r.inMin > coreFrom;
+    var early = r.hasIn && coreTo != null && r.leave < coreTo;
+    $('warnLate').hidden = !late; $('warnLate').textContent = 'You came in after core time started (' + s.coreFrom + ').';
+    $('warnEarly').hidden = !early; $('warnEarly').textContent = 'Leaving before core time ends (' + s.coreTo + ').';
+
+    ORDER.forEach(function (k) { var el = $('day-' + k); if (el) setVal(el, hm(s.week[k] || 0)); });
+    setVal($('defLunch'), s.defaultLunch);
+    setVal($('coreFrom'), s.coreFrom);
+    setVal($('coreTo'), s.coreTo);
+    INTERVALS.forEach(function (v) { $('iv-' + v).setAttribute('aria-pressed', v === r.iv ? 'true' : 'false'); });
+    $('ivExample').textContent = r.iv === 1
+      ? 'Every minute counts toward your flex.'
+      : 'Flex counts in whole ' + r.iv + '-min steps: ' + Math.round(r.iv * 1.5) + ' min over gives +' + hm(r.iv) + ', 3 min short gives −' + hm(r.iv) + '.';
+
+    renderLog();
+  }
+
+  function renderLog() {
+    var log = $('log'); log.textContent = '';
+    var rows = state.saved.slice().sort(function (a, b) { return a.date < b.date ? 1 : -1; });
+    if (!rows.length) {
+      var p = document.createElement('div'); p.className = 'sub';
+      p.textContent = 'No days saved yet. Tap Save today when you leave, and the day shows up here.';
+      log.appendChild(p); return;
+    }
+    rows.forEach(function (e) {
+      var row = document.createElement('div'); row.className = 'log-row';
+      var main = document.createElement('div'); main.className = 'log-main';
+      var d = document.createElement('span'); d.className = 'log-date';
+      var parts = e.date.split('-');
+      d.textContent = new Date(+parts[0], +parts[1] - 1, +parts[2]).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+      var sp = document.createElement('span'); sp.className = 'log-span';
+      sp.textContent = e.cameIn + '–' + e.leaveAt + ' · breaks ' + e.breaks + ' min';
+      main.appendChild(d); main.appendChild(sp);
+      var f = document.createElement('span'); f.className = 'log-flex ' + tone(e.flex); f.textContent = signed(e.flex);
+      var del = document.createElement('button'); del.type = 'button';
+      if (confirmDel === e.date) {
+        del.className = 'log-del confirm'; del.textContent = 'Remove';
+        del.setAttribute('aria-label', 'Confirm removing ' + d.textContent);
+      } else {
+        del.className = 'log-del';
+        del.setAttribute('aria-label', 'Remove ' + d.textContent);
+        del.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg>';
+      }
+      del.addEventListener('click', function () {
+        if (confirmDel === e.date) {
+          state.saved = state.saved.filter(function (x) { return x.date !== e.date; });
+          confirmDel = null; persist(); render();
+        } else { confirmDel = e.date; renderLog(); }
+      });
+      row.appendChild(main); row.appendChild(f); row.appendChild(del);
+      log.appendChild(row);
+    });
+    var total = state.saved.reduce(function (a, e) { return a + (e.flex || 0); }, 0) + (state.settings.startBalance || 0);
+    var tr = document.createElement('div'); tr.className = 'log-total';
+    var l = document.createElement('span'); l.textContent = 'Balance from saved days';
+    var b = document.createElement('b'); b.className = tone(total); b.textContent = signed(total);
+    tr.appendChild(l); tr.appendChild(b); log.appendChild(tr);
+  }
+
+  // Build settings controls
+  ORDER.forEach(function (k) {
+    var f = document.createElement('div'); f.className = 'field';
+    var l = document.createElement('label'); l.htmlFor = 'day-' + k; l.textContent = LABEL[k];
+    var i = document.createElement('input'); i.type = 'text'; i.id = 'day-' + k; i.inputMode = 'decimal'; i.autocomplete = 'off';
+    i.style.fontSize = '15px'; i.style.padding = '0 10px';
+    i.addEventListener('change', function () {
+      var v = parseDur(i.value);
+      if (v != null && v >= 0 && v <= 1440) { state.settings.week[k] = v; persist(); }
+      i.value = hm(state.settings.week[k] || 0); render();
+    });
+    f.appendChild(l); f.appendChild(i); $('weekGrid').appendChild(f);
+  });
+  INTERVALS.forEach(function (v) {
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'pill'; b.id = 'iv-' + v;
+    b.textContent = v; b.setAttribute('aria-label', v + ' minutes');
+    b.addEventListener('click', function () { state.settings.interval = v; persist(); render(); });
+    $('pills').appendChild(b);
+  });
+
+  // Today inputs
+  function onToday(id, key, transform) {
+    $(id).addEventListener('input', function () {
+      state.today[key] = transform ? transform($(id).value) : $(id).value;
+      persist(); render();
+    });
+  }
+  onToday('cameIn', 'cameIn');
+  onToday('leaveAt', 'leaveAt');
+  onToday('lunch', 'lunch', num);
+  onToday('breaks', 'breaks', num);
+  $('slider').addEventListener('input', function () { state.today.leaveAt = clock(+$('slider').value); persist(); render(); });
+  $('cameInNow').addEventListener('click', function () { state.today.cameIn = clock(nowMin()); persist(); render(); });
+  $('zeroChip').addEventListener('click', function () { var r = calc(); if (r.hasIn) { state.today.leaveAt = clock(r.zero); persist(); render(); } });
+  $('nowChip').addEventListener('click', function () { state.today.leaveAt = clock(nowMin()); persist(); render(); });
+  $('before').addEventListener('change', function () {
+    var v = parseSigned($('before').value);
+    if (v != null) {
+      var others = state.saved.reduce(function (a, e) { return e.date === state.today.date ? a : a + (e.flex || 0); }, 0);
+      state.settings.startBalance = v - others; persist();
+    }
+    $('before').value = signed(calc().before); render();
+  });
+  $('saveToday').addEventListener('click', function () {
+    var r = calc(); if (!r.hasIn) return;
+    var entry = { date: state.today.date, cameIn: clock(r.inMin), leaveAt: clock(r.leave), breaks: r.brk, flex: r.counted };
+    state.saved = state.saved.filter(function (x) { return x.date !== entry.date; }).concat([entry]);
+    persist(); render();
+    $('saveToday').textContent = 'Saved (' + signed(r.counted) + ')';
+  });
+  $('toggleMore').addEventListener('click', function () {
+    var open = $('more').hidden;
+    $('more').hidden = !open;
+    $('toggleMore').textContent = open ? 'Hide' : 'Normal hours & log';
+    $('toggleMore').setAttribute('aria-expanded', open ? 'true' : 'false');
+    try { localStorage.setItem('flextid.more', open ? '1' : '0'); } catch (e) {}
+  });
+  try { if (localStorage.getItem('flextid.more') === '1') $('toggleMore').click(); } catch (e) {}
+  $('defLunch').addEventListener('change', function () { state.settings.defaultLunch = num($('defLunch').value); persist(); render(); });
+  $('coreFrom').addEventListener('change', function () { state.settings.coreFrom = $('coreFrom').value; persist(); render(); });
+  $('coreTo').addEventListener('change', function () { state.settings.coreTo = $('coreTo').value; persist(); render(); });
+
+  function tick() {
+    if (state.today.date !== dateKey()) { state = normalize(state); persist(); }
+    render();
+  }
+  setInterval(tick, 30000);
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) tick(); });
+
+  // Backup export / import
+  $('exportBtn').addEventListener('click', function () {
+    var blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'flextid-backup-' + dateKey() + '.json';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+  });
+  $('importFile').addEventListener('change', function () {
+    var file = $('importFile').files[0]; if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      try {
+        var data = JSON.parse(reader.result);
+        if (!data || typeof data !== 'object' || !data.settings) throw new Error('bad');
+        pendingImport = data;
+        var n = Array.isArray(data.saved) ? data.saved.length : 0;
+        $('importMsg').textContent = 'This backup has ' + n + ' saved day' + (n === 1 ? '' : 's') + ' and replaces everything in the app.';
+        $('importConfirm').hidden = false;
+      } catch (e) {
+        pendingImport = null;
+        $('importMsg').textContent = 'That file is not a Flextid backup. Choose a file you exported from this app.';
+        $('importConfirm').hidden = false;
+        $('importYes').hidden = true;
+        return;
+      }
+      $('importYes').hidden = false;
+    };
+    reader.readAsText(file);
+    $('importFile').value = '';
+  });
+  $('importYes').addEventListener('click', function () {
+    if (!pendingImport) return;
+    state = normalize(pendingImport); pendingImport = null;
+    $('importConfirm').hidden = true; persist(); render();
+    $('status').textContent = 'Backup imported';
+  });
+  $('importNo').addEventListener('click', function () { pendingImport = null; $('importConfirm').hidden = true; });
+
+  render(); renderStatus();
+
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
+  }
+})();
+</script>
+</body>
+</html>
