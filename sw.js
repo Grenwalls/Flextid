@@ -1,6 +1,6 @@
 // Flextid service worker: keeps the app working offline.
 // Bump VERSION when you change any app file so phones pick up the update.
-var VERSION = 'flextid-v1';
+var VERSION = 'flextid-v4';
 var SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable-512.png'];
 
 self.addEventListener('install', function (event) {

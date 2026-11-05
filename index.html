@@ -85,11 +85,21 @@ input[type=range] { width: 100%; margin: 2px 0; height: 32px; accent-color: var(
 .btn-solid { height: 44px; padding: 0 14px; border-radius: 8px; border: none; background: var(--btn); color: var(--btn-fg); font-size: 14px; font-weight: 600; }
 .btn-solid:disabled { opacity: .5; cursor: default; }
 .btn-link { height: 44px; padding: 0 4px; border: none; background: transparent; color: var(--accent); font-size: 14px; font-weight: 500; }
+.settings-card { padding: 0; gap: 0; }
+.settings-card .more { margin: 0 16px 16px; }
+.toggle-more { width: 100%; min-height: 52px; padding: 0 16px; border: none; background: transparent; color: var(--accent); font-size: 15px; font-weight: 600; display: flex; align-items: center; justify-content: space-between; border-radius: 16px; }
+.toggle-more[aria-expanded="true"] .chev { transform: rotate(180deg); }
 .more { border-top: 1px solid var(--line); padding-top: 16px; display: flex; flex-direction: column; gap: 14px; }
 .eyebrow { font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); padding-top: 4px; }
 .pills { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
 .pill { height: 40px; border-radius: 8px; border: 1px solid var(--field-line); background: var(--field); color: var(--fg); font: 500 14px var(--mono); }
 .pill[aria-pressed="true"] { background: var(--btn); color: var(--btn-fg); border-color: var(--btn); }
+.sched-pills { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
+.sched-pills .pill { height: 44px; font: 600 13px var(--sans); padding: 0 4px; line-height: 1.15; }
+.sched-info { margin: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 14px; font-size: 13px; color: var(--label); background: var(--field); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+.sched-info dt { color: var(--muted); }
+.sched-info dd { margin: 0; font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.sched-info dd.note { font-family: var(--sans); }
 .log { display: flex; flex-direction: column; }
 .log-row { display: flex; align-items: center; gap: 10px; min-height: 52px; border-bottom: 1px solid #2E3137; }
 .log-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
@@ -171,9 +181,13 @@ input[type=range] { width: 100%; margin: 2px 0; height: 32px; accent-color: var(
       <button type="button" class="chip" id="nowChip">Leave now (<span id="nowTime">--:--</span>): <b id="nowFlex">±0:00</b></button>
       <span class="sub" id="normalNote"></span>
     </div>
+    <div class="sub" id="schedNote"></div>
 
+    <div class="warn" id="warnWinIn" hidden></div>
     <div class="warn" id="warnLate" hidden></div>
     <div class="warn" id="warnEarly" hidden></div>
+    <div class="warn" id="warnWinOut" hidden></div>
+    <div class="warn" id="warnZero" hidden></div>
 
     <div class="save-row">
       <div class="field">
@@ -181,30 +195,48 @@ input[type=range] { width: 100%; margin: 2px 0; height: 32px; accent-color: var(
         <input id="before" type="text" autocomplete="off" spellcheck="false">
       </div>
       <button type="button" class="btn-solid" id="saveToday">Save today</button>
-      <button type="button" class="btn-link" id="toggleMore" aria-expanded="false" aria-controls="more">Normal hours &amp; log</button>
     </div>
+  </section>
 
+  <section class="card" aria-labelledby="schedTitle">
+    <div class="eyebrow" id="schedTitle" style="padding-top: 0">Schedule</div>
+    <div class="sched-pills" role="group" aria-label="Schedule" id="schedPills"></div>
+    <dl class="sched-info" id="schedInfo"></dl>
+  </section>
+
+  <section class="card settings-card" aria-label="Settings and log">
+    <button type="button" class="toggle-more" id="toggleMore" aria-expanded="false" aria-controls="more"><span id="toggleLabel">Settings &amp; log</span><svg class="chev" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"></path></svg></button>
     <div class="more" id="more" hidden>
-      <div class="eyebrow">Normal working time (without breaks)</div>
+      <div class="eyebrow">Normal working time (without lunch)</div>
       <div class="grid4" id="weekGrid"></div>
 
-      <div class="grid3">
+      <div class="eyebrow">Flex intervals</div>
+      <div class="grid2">
         <div class="field">
-          <label for="defLunch">Default lunch</label>
-          <input id="defLunch" type="number" inputmode="numeric" min="0" max="600">
+          <label for="flexStart">Earliest in</label>
+          <input id="flexStart" type="time">
         </div>
         <div class="field">
-          <label for="coreFrom">Core from</label>
+          <label for="coreFrom">Latest in</label>
           <input id="coreFrom" type="time">
         </div>
         <div class="field">
-          <label for="coreTo">Core to</label>
+          <label for="coreTo">Earliest out</label>
           <input id="coreTo" type="time">
         </div>
+        <div class="field">
+          <label for="flexEnd">Latest out</label>
+          <input id="flexEnd" type="time">
+        </div>
+        <div class="field">
+          <label for="defLunch">Default lunch (min)</label>
+          <input id="defLunch" type="number" inputmode="numeric" min="0" max="600">
+        </div>
       </div>
+      <div class="sub">Time before earliest in or after latest out doesn't count toward flex. Leave a field empty to turn that limit off.</div>
 
-      <div class="eyebrow">Flex interval (min)</div>
-      <div class="pills" role="group" aria-label="Flex interval in minutes" id="pills"></div>
+      <div class="eyebrow">Count flex in steps of (min)</div>
+      <div class="pills" role="group" aria-label="Count flex in steps of minutes" id="pills"></div>
       <div class="sub" id="ivExample"></div>
 
       <div class="eyebrow">Saved days</div>
@@ -236,6 +268,30 @@ input[type=range] { width: 100%; margin: 2px 0; height: 32px; accent-color: var(
   var INTERVALS = [1, 5, 10, 15, 30, 60];
   var LS_KEY = 'flextid.v1';
   var BAR_MIN = 300, BAR_MAX = 1260;
+  var SCHEDULES = {
+    prod:  { name: 'Produktion',      start: '06:45', end: '15:30', lunch: '11:45–12:30', flexIn: ['06:00', '07:30'], flexOut: ['14:15', '17:30'] },
+    admin: { name: 'Administration',  start: '07:30', end: '16:15', lunch: '11:45–12:30', flexIn: ['06:30', '08:30'], flexOut: ['14:45', '18:00'] },
+    gbg:   { name: 'Kontor Göteborg', start: '08:00', end: '16:45', lunch: '12:00–12:45', flexIn: ['06:00', '09:00'], flexOut: ['15:00', '18:00'] }
+  };
+  var SCHED_ORDER = ['prod', 'admin', 'gbg'];
+  var LUNCH_WINDOW = '11:30–13:00';
+  function applySchedule(st, key) {
+    var sc = SCHEDULES[key]; if (!sc) return st;
+    st.schedule = key;
+    st.week = { mon: 480, tue: 480, wed: 480, thu: 480, fri: 480, sat: 0, sun: 0 };
+    st.defaultLunch = 45;
+    st.flexStart = sc.flexIn[0]; st.coreFrom = sc.flexIn[1];
+    st.coreTo = sc.flexOut[0]; st.flexEnd = sc.flexOut[1];
+    return st;
+  }
+  function matchSchedule(st) {
+    var hit = 'custom';
+    SCHED_ORDER.forEach(function (k) {
+      var sc = SCHEDULES[k];
+      if (st.flexStart === sc.flexIn[0] && st.coreFrom === sc.flexIn[1] && st.coreTo === sc.flexOut[0] && st.flexEnd === sc.flexOut[1]) hit = k;
+    });
+    return hit;
+  }
 
   function $(id) { return document.getElementById(id); }
   function pad(n) { return String(n).padStart(2, '0'); }
@@ -270,7 +326,7 @@ input[type=range] { width: 100%; margin: 2px 0; height: 32px; accent-color: var(
   function defaults() {
     return {
       v: 1,
-      settings: { week: { mon: 480, tue: 480, wed: 480, thu: 480, fri: 480, sat: 0, sun: 0 }, defaultLunch: 45, coreFrom: '08:30', coreTo: '14:45', interval: 1, startBalance: 0 },
+      settings: applySchedule({ interval: 1, startBalance: 0 }, 'admin'),
       today: { date: dateKey(), cameIn: '', leaveAt: '', lunch: 45, breaks: 0 },
       saved: [],
       updatedAt: 0
@@ -280,6 +336,12 @@ input[type=range] { width: 100%; margin: 2px 0; height: 32px; accent-color: var(
     var d = defaults(), s = raw && typeof raw === 'object' ? raw : {};
     var st = Object.assign({}, d.settings, s.settings || {});
     st.week = Object.assign({}, d.settings.week, (s.settings && s.settings.week) || {});
+    if (s.settings && !('schedule' in s.settings)) {
+      // Data from before schedules existed: keep the user's own core times.
+      if (st.coreFrom === '08:30' && st.coreTo === '14:45') { st.flexStart = '06:30'; st.flexEnd = '18:00'; }
+      else { st.flexStart = ''; st.flexEnd = ''; }
+      st.schedule = matchSchedule(st);
+    }
     var today = Object.assign({}, d.today, s.today || {});
     if (today.date !== dateKey()) today = { date: dateKey(), cameIn: '', leaveAt: '', lunch: st.defaultLunch, breaks: 0 };
     return { v: 1, settings: st, today: today, saved: Array.isArray(s.saved) ? s.saved.slice() : [], updatedAt: s.updatedAt || 0 };
@@ -313,13 +375,19 @@ input[type=range] { width: 100%; margin: 2px 0; height: 32px; accent-color: var(
     var before = (s.startBalance || 0) + others;
     var r = { n: n, normal: normal, brk: brk, iv: iv, before: before, hasIn: inMin != null };
     if (inMin == null) return r;
-    r.zero = inMin + normal + brk;
+    var fs = toMin(s.flexStart), fe = toMin(s.flexEnd);
+    var effIn = fs != null ? Math.max(inMin, fs) : inMin;
+    var cap = function (m) { return fe != null ? Math.min(m, fe) : m; };
+    r.zero = effIn + normal + brk;
     r.leave = toMin(t.leaveAt); if (r.leave == null) r.leave = r.zero;
-    r.raw = r.leave - inMin - brk - normal;
+    r.raw = cap(r.leave) - effIn - brk - normal;
     r.counted = Math.floor(r.raw / iv) * iv;
-    r.nowCounted = Math.floor((n - inMin - brk - normal) / iv) * iv;
+    r.nowCounted = Math.floor((cap(n) - effIn - brk - normal) / iv) * iv;
     r.balance = before + r.counted;
     r.inMin = inMin;
+    r.beforeWindow = fs != null && inMin < fs;
+    r.afterWindow = fe != null && r.leave > fe;
+    r.zeroAfterWindow = fe != null && r.zero > fe;
     return r;
   }
 
@@ -374,13 +442,42 @@ input[type=range] { width: 100%; margin: 2px 0; height: 32px; accent-color: var(
     var coreFrom = toMin(s.coreFrom), coreTo = toMin(s.coreTo);
     var late = r.hasIn && coreFrom != null && r.inMin > coreFrom;
     var early = r.hasIn && coreTo != null && r.leave < coreTo;
-    $('warnLate').hidden = !late; $('warnLate').textContent = 'You came in after core time started (' + s.coreFrom + ').';
-    $('warnEarly').hidden = !early; $('warnEarly').textContent = 'Leaving before core time ends (' + s.coreTo + ').';
+    $('warnLate').hidden = !late; $('warnLate').textContent = 'You came in after the flex-in interval ended (' + s.coreFrom + ').';
+    $('warnEarly').hidden = !early; $('warnEarly').textContent = 'Leaving before the flex-out interval starts (' + s.coreTo + ').';
+    $('warnWinIn').hidden = !(r.hasIn && r.beforeWindow);
+    $('warnWinIn').textContent = 'Time before ' + s.flexStart + ' doesn\'t count, so your day is counted from ' + s.flexStart + '.';
+    $('warnWinOut').hidden = !(r.hasIn && r.afterWindow);
+    $('warnWinOut').textContent = 'Time after ' + s.flexEnd + ' doesn\'t count toward flex.';
+    $('warnZero').hidden = !(r.hasIn && r.zeroAfterWindow);
+    $('warnZero').textContent = 'You can\'t reach ±0 today before ' + s.flexEnd + '.';
+
+    var sc = SCHEDULES[s.schedule];
+    var inTxt = (s.flexStart || '…') + '–' + (s.coreFrom || '…'), outTxt = (s.coreTo || '…') + '–' + (s.flexEnd || '…');
+    $('schedNote').textContent = (sc ? sc.name + ' · normal ' + sc.start + '–' + sc.end + ' · ' : 'Own schedule · ') + 'flex in ' + inTxt + ', out ' + outTxt;
+
+    SCHED_ORDER.concat(['custom']).forEach(function (k) { var b = $('sch-' + k); if (b) b.setAttribute('aria-pressed', s.schedule === k ? 'true' : 'false'); });
+    var info = $('schedInfo'); info.textContent = '';
+    function row(dt, dd, note) {
+      var a = document.createElement('dt'); a.textContent = dt;
+      var b = document.createElement('dd'); b.textContent = dd; if (note) b.className = 'note';
+      info.appendChild(a); info.appendChild(b);
+    }
+    if (sc) {
+      row('Mon–Fri', sc.start + '–' + sc.end);
+      row('Lunch', sc.lunch + ' (45 min, between ' + LUNCH_WINDOW + ')');
+      row('Flex in', sc.flexIn[0] + '–' + sc.flexIn[1]);
+      row('Flex out', sc.flexOut[0] + '–' + sc.flexOut[1]);
+    } else {
+      row('Own', 'You have set your own times under Settings & log.', true);
+    }
+    row('Pauses', '15 min between 08:45–09:15, and 15 min in the afternoon as work allows. They count as work time, so don\'t add them as breaks.', true);
 
     ORDER.forEach(function (k) { var el = $('day-' + k); if (el) setVal(el, hm(s.week[k] || 0)); });
     setVal($('defLunch'), s.defaultLunch);
-    setVal($('coreFrom'), s.coreFrom);
-    setVal($('coreTo'), s.coreTo);
+    setVal($('flexStart'), s.flexStart || '');
+    setVal($('coreFrom'), s.coreFrom || '');
+    setVal($('coreTo'), s.coreTo || '');
+    setVal($('flexEnd'), s.flexEnd || '');
     INTERVALS.forEach(function (v) { $('iv-' + v).setAttribute('aria-pressed', v === r.iv ? 'true' : 'false'); });
     $('ivExample').textContent = r.iv === 1
       ? 'Every minute counts toward your flex.'
@@ -485,14 +582,28 @@ input[type=range] { width: 100%; margin: 2px 0; height: 32px; accent-color: var(
   $('toggleMore').addEventListener('click', function () {
     var open = $('more').hidden;
     $('more').hidden = !open;
-    $('toggleMore').textContent = open ? 'Hide' : 'Normal hours & log';
     $('toggleMore').setAttribute('aria-expanded', open ? 'true' : 'false');
     try { localStorage.setItem('flextid.more', open ? '1' : '0'); } catch (e) {}
   });
   try { if (localStorage.getItem('flextid.more') === '1') $('toggleMore').click(); } catch (e) {}
   $('defLunch').addEventListener('change', function () { state.settings.defaultLunch = num($('defLunch').value); persist(); render(); });
-  $('coreFrom').addEventListener('change', function () { state.settings.coreFrom = $('coreFrom').value; persist(); render(); });
-  $('coreTo').addEventListener('change', function () { state.settings.coreTo = $('coreTo').value; persist(); render(); });
+  ['flexStart', 'coreFrom', 'coreTo', 'flexEnd'].forEach(function (id) {
+    $(id).addEventListener('change', function () {
+      state.settings[id] = $(id).value;
+      state.settings.schedule = matchSchedule(state.settings);
+      persist(); render();
+    });
+  });
+  SCHED_ORDER.concat(['custom']).forEach(function (k) {
+    var b = document.createElement('button'); b.type = 'button'; b.className = 'pill'; b.id = 'sch-' + k;
+    b.textContent = k === 'custom' ? 'Own' : SCHEDULES[k].name;
+    b.addEventListener('click', function () {
+      if (k === 'custom') { state.settings.schedule = 'custom'; }
+      else { applySchedule(state.settings, k); if (!state.today.cameIn) state.today.lunch = 45; }
+      persist(); render();
+    });
+    $('schedPills').appendChild(b);
+  });
 
   function tick() {
     if (state.today.date !== dateKey()) { state = normalize(state); persist(); }
